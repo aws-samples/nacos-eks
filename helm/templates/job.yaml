@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  creationTimestamp: null
+  name: init-mysql
+spec:
+  template:
+    metadata:
+      creationTimestamp: null
+    spec:
+      containers:
+      - image: imega/mysql-client
+        name: init-mysql
+        resources: {}
+        command: ["/bin/sh","/init-mysql.sh"]
+        volumeMounts:
+        - name: nacos-mysql-initsql
+          mountPath: /nacos-mysql.sql
+          subPath: nacos-mysql.sql
+        - name: init-script
+          mountPath: /init-mysql.sh
+          subPath: init-mysql.sh
+      restartPolicy: Never 
+      volumes:
+        - name: nacos-mysql-initsql
+          configMap:
+            name: nacos-mysql-initsql
+        - name: init-script
+          configMap:
+            name: init-script
+status: {}

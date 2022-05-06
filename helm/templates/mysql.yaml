@@ -1,0 +1,94 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+{{- if eq .Values.storage.type "mysql" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.storage.mysql.name }}
+spec:
+  ports:
+  - port: {{ .Values.storage.mysql.port }}
+  selector:
+    app: mysql
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.storage.mysql.name }}
+spec:
+  serviceName: mysql
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      initContainers:
+        - name: clean-volume
+          image: {{ .Values.storage.mysql.image.repository }}:{{ .Values.storage.mysql.image.tag }}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - name: mysql-persistent-storage
+            mountPath: /var/lib/mysql
+          command: ["/bin/rm", "-rf", "/var/lib/mysql/lost+found/"]
+      containers:
+      - image: {{ .Values.storage.mysql.image.repository }}:{{ .Values.storage.mysql.image.tag }}
+        name: mysql
+        env:
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: nacos-cm
+              key: mysql.db.name
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: nacos-cm
+              key: mysql.password
+        - name: MYSQL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: nacos-cm
+              key: mysql.user
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: nacos-cm
+              key: mysql.password
+        - name: MYSQL_TCP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: nacos-cm
+              key: mysql.port
+
+        ports:
+        - containerPort: {{ .Values.storage.mysql.port }}
+          name: mysql
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-persistent-storage
+      spec:
+  {{- toYaml .Values.persistence.mysql | nindent 8 }}
+  {{- end }}
+  {{- end }}

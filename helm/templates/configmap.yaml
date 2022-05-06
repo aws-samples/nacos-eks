@@ -1,0 +1,193 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+{{- if eq .Values.storage.type "mysql"}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nacos-cm
+data:
+  {{- with .Values.storage.mysql }}
+  mysql.db.host: {{.host}}
+  mysql.db.name: {{ .database }}
+  mysql.port: "{{ .port | default 3306}}"
+  mysql.user: {{ .username }}
+  mysql.password: {{ .password }}
+  mysql.param: {{ .param | default "characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false" }}
+  {{- end }}
+  {{- end }}
+{{- if or (eq .Values.storage.type "mysql") (eq .Values.storage.type "rds") }}
+---
+apiVersion: v1
+data:
+  nacos-mysql.sql: "/*\n * Copyright 1999-2018 Alibaba Group Holding Ltd.\n *\n *
+    Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may
+    not use this file except in compliance with the License.\n * You may obtain a
+    copy of the License at\n *\n *      http://www.apache.org/licenses/LICENSE-2.0\n
+    *\n * Unless required by applicable law or agreed to in writing, software\n *
+    distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT
+    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License
+    for the specific language governing permissions and\n * limitations under the
+    License.\n */\n\n/******************************************/\n/*   数据库全名 = {{ .Values.storage.mysql.database }}
+    \  */\n/*   表名称 = config_info   */\n/******************************************/\nCREATE
+    DATABASE IF NOT EXISTS {{ .Values.storage.mysql.database }} DEFAULT CHARSET utf8 COLLATE utf8_general_ci;\nuse
+    {{ .Values.storage.mysql.database }};\n\nCREATE TABLE IF NOT EXISTS `config_info` (\n  `id` bigint(20) NOT NULL AUTO_INCREMENT
+    COMMENT 'id',\n  `data_id` varchar(255) NOT NULL COMMENT 'data_id',\n  `group_id`
+    varchar(255) DEFAULT NULL,\n  `content` longtext NOT NULL COMMENT 'content',\n
+    \ `md5` varchar(32) DEFAULT NULL COMMENT 'md5',\n  `gmt_create` datetime NOT NULL
+    DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',\n  `gmt_modified` datetime NOT NULL
+    DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',\n  `src_user` text COMMENT 'source user',\n
+    \ `src_ip` varchar(50) DEFAULT NULL COMMENT 'source ip',\n  `app_name` varchar(128)
+    DEFAULT NULL,\n  `tenant_id` varchar(128) DEFAULT '' COMMENT '租户字段',\n  `c_desc`
+    varchar(256) DEFAULT NULL,\n  `c_use` varchar(64) DEFAULT NULL,\n  `effect` varchar(64)
+    DEFAULT NULL,\n  `type` varchar(64) DEFAULT NULL,\n  `c_schema` text,\n  `encrypted_data_key`
+    text NOT NULL COMMENT '秘钥',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uk_configinfo_datagrouptenant`
+    (`data_id`,`group_id`,`tenant_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+    COMMENT='config_info';\n\n/******************************************/\n/*   数据库全名
+    = nacos   */\n/*   表名称 = config_info_aggr   */\n/******************************************/\nCREATE
+    TABLE `config_info_aggr` (\n  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT
+    'id',\n  `data_id` varchar(255) NOT NULL COMMENT 'data_id',\n  `group_id` varchar(255)
+    NOT NULL COMMENT 'group_id',\n  `datum_id` varchar(255) NOT NULL COMMENT 'datum_id',\n
+    \ `content` longtext NOT NULL COMMENT '内容',\n  `gmt_modified` datetime NOT NULL
+    COMMENT '修改时间',\n  `app_name` varchar(128) DEFAULT NULL,\n  `tenant_id` varchar(128)
+    DEFAULT '' COMMENT '租户字段',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uk_configinfoaggr_datagrouptenantdatum`
+    (`data_id`,`group_id`,`tenant_id`,`datum_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8
+    COLLATE=utf8_bin COMMENT='增加租户字段';\n\n\n/******************************************/\n/*
+    \  数据库全名 = {{ .Values.storage.mysql.database }}   */\n/*   表名称 = config_info_beta   */\n/******************************************/\nCREATE
+    TABLE `config_info_beta` (\n  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT
+    'id',\n  `data_id` varchar(255) NOT NULL COMMENT 'data_id',\n  `group_id` varchar(128)
+    NOT NULL COMMENT 'group_id',\n  `app_name` varchar(128) DEFAULT NULL COMMENT 'app_name',\n
+    \ `content` longtext NOT NULL COMMENT 'content',\n  `beta_ips` varchar(1024) DEFAULT
+    NULL COMMENT 'betaIps',\n  `md5` varchar(32) DEFAULT NULL COMMENT 'md5',\n  `gmt_create`
+    datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',\n  `gmt_modified`
+    datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',\n  `src_user` text
+    COMMENT 'source user',\n  `src_ip` varchar(50) DEFAULT NULL COMMENT 'source ip',\n
+    \ `tenant_id` varchar(128) DEFAULT '' COMMENT '租户字段',\n  `encrypted_data_key`
+    text NOT NULL COMMENT '秘钥',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uk_configinfobeta_datagrouptenant`
+    (`data_id`,`group_id`,`tenant_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+    COMMENT='config_info_beta';\n\n/******************************************/\n/*
+    \  数据库全名 = {{ .Values.storage.mysql.database }}   */\n/*   表名称 = config_info_tag   */\n/******************************************/\nCREATE
+    TABLE `config_info_tag` (\n  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',\n
+    \ `data_id` varchar(255) NOT NULL COMMENT 'data_id',\n  `group_id` varchar(128)
+    NOT NULL COMMENT 'group_id',\n  `tenant_id` varchar(128) DEFAULT '' COMMENT 'tenant_id',\n
+    \ `tag_id` varchar(128) NOT NULL COMMENT 'tag_id',\n  `app_name` varchar(128)
+    DEFAULT NULL COMMENT 'app_name',\n  `content` longtext NOT NULL COMMENT 'content',\n
+    \ `md5` varchar(32) DEFAULT NULL COMMENT 'md5',\n  `gmt_create` datetime NOT NULL
+    DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',\n  `gmt_modified` datetime NOT NULL
+    DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',\n  `src_user` text COMMENT 'source user',\n
+    \ `src_ip` varchar(50) DEFAULT NULL COMMENT 'source ip',\n  PRIMARY KEY (`id`),\n
+    \ UNIQUE KEY `uk_configinfotag_datagrouptenanttag` (`data_id`,`group_id`,`tenant_id`,`tag_id`)\n)
+    ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='config_info_tag';\n\n/******************************************/\n/*
+    \  数据库全名 = {{ .Values.storage.mysql.database }}   */\n/*   表名称 = config_tags_relation   */\n/******************************************/\nCREATE
+    TABLE `config_tags_relation` (\n  `id` bigint(20) NOT NULL COMMENT 'id',\n  `tag_name`
+    varchar(128) NOT NULL COMMENT 'tag_name',\n  `tag_type` varchar(64) DEFAULT NULL
+    COMMENT 'tag_type',\n  `data_id` varchar(255) NOT NULL COMMENT 'data_id',\n  `group_id`
+    varchar(128) NOT NULL COMMENT 'group_id',\n  `tenant_id` varchar(128) DEFAULT
+    '' COMMENT 'tenant_id',\n  `nid` bigint(20) NOT NULL AUTO_INCREMENT,\n  PRIMARY
+    KEY (`nid`),\n  UNIQUE KEY `uk_configtagrelation_configidtag` (`id`,`tag_name`,`tag_type`),\n
+    \ KEY `idx_tenant_id` (`tenant_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+    COMMENT='config_tag_relation';\n\n/******************************************/\n/*
+    \  数据库全名 = {{ .Values.storage.mysql.database }}   */\n/*   表名称 = group_capacity   */\n/******************************************/\nCREATE
+    TABLE `group_capacity` (\n  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT
+    '主键ID',\n  `group_id` varchar(128) NOT NULL DEFAULT '' COMMENT 'Group ID，空字符表示整个集群',\n
+    \ `quota` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '配额，0表示使用默认值',\n  `usage`
+    int(10) unsigned NOT NULL DEFAULT '0' COMMENT '使用量',\n  `max_size` int(10) unsigned
+    NOT NULL DEFAULT '0' COMMENT '单个配置大小上限，单位为字节，0表示使用默认值',\n  `max_aggr_count` int(10)
+    unsigned NOT NULL DEFAULT '0' COMMENT '聚合子配置最大个数，，0表示使用默认值',\n  `max_aggr_size`
+    int(10) unsigned NOT NULL DEFAULT '0' COMMENT '单个聚合数据的子配置大小上限，单位为字节，0表示使用默认值',\n
+    \ `max_history_count` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '最大变更历史数量',\n
+    \ `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',\n  `gmt_modified`
+    datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',\n  PRIMARY KEY (`id`),\n
+    \ UNIQUE KEY `uk_group_id` (`group_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8
+    COLLATE=utf8_bin COMMENT='集群、各Group容量信息表';\n\n/******************************************/\n/*
+    \  数据库全名 = {{ .Values.storage.mysql.database }}   */\n/*   表名称 = his_config_info   */\n/******************************************/\nCREATE
+    TABLE `his_config_info` (\n  `id` bigint(64) unsigned NOT NULL,\n  `nid` bigint(20)
+    unsigned NOT NULL AUTO_INCREMENT,\n  `data_id` varchar(255) NOT NULL,\n  `group_id`
+    varchar(128) NOT NULL,\n  `app_name` varchar(128) DEFAULT NULL COMMENT 'app_name',\n
+    \ `content` longtext NOT NULL,\n  `md5` varchar(32) DEFAULT NULL,\n  `gmt_create`
+    datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `gmt_modified` datetime NOT NULL
+    DEFAULT CURRENT_TIMESTAMP,\n  `src_user` text,\n  `src_ip` varchar(50) DEFAULT
+    NULL,\n  `op_type` char(10) DEFAULT NULL,\n  `tenant_id` varchar(128) DEFAULT
+    '' COMMENT '租户字段',\n  `encrypted_data_key` text NOT NULL COMMENT '秘钥',\n  PRIMARY
+    KEY (`nid`),\n  KEY `idx_gmt_create` (`gmt_create`),\n  KEY `idx_gmt_modified`
+    (`gmt_modified`),\n  KEY `idx_did` (`data_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8
+    COLLATE=utf8_bin COMMENT='多租户改造';\n\n\n/******************************************/\n/*
+    \  数据库全名 = {{ .Values.storage.mysql.database }}   */\n/*   表名称 = tenant_capacity   */\n/******************************************/\nCREATE
+    TABLE `tenant_capacity` (\n  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT
+    COMMENT '主键ID',\n  `tenant_id` varchar(128) NOT NULL DEFAULT '' COMMENT 'Tenant
+    ID',\n  `quota` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '配额，0表示使用默认值',\n
+    \ `usage` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '使用量',\n  `max_size` int(10)
+    unsigned NOT NULL DEFAULT '0' COMMENT '单个配置大小上限，单位为字节，0表示使用默认值',\n  `max_aggr_count`
+    int(10) unsigned NOT NULL DEFAULT '0' COMMENT '聚合子配置最大个数',\n  `max_aggr_size`
+    int(10) unsigned NOT NULL DEFAULT '0' COMMENT '单个聚合数据的子配置大小上限，单位为字节，0表示使用默认值',\n
+    \ `max_history_count` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '最大变更历史数量',\n
+    \ `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',\n  `gmt_modified`
+    datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',\n  PRIMARY KEY (`id`),\n
+    \ UNIQUE KEY `uk_tenant_id` (`tenant_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8
+    COLLATE=utf8_bin COMMENT='租户容量信息表';\n\n\nCREATE TABLE IF NOT EXISTS `tenant_info` (\n  `id`
+    bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',\n  `kp` varchar(128) NOT NULL
+    COMMENT 'kp',\n  `tenant_id` varchar(128) default '' COMMENT 'tenant_id',\n  `tenant_name`
+    varchar(128) default '' COMMENT 'tenant_name',\n  `tenant_desc` varchar(256) DEFAULT
+    NULL COMMENT 'tenant_desc',\n  `create_source` varchar(32) DEFAULT NULL COMMENT
+    'create_source',\n  `gmt_create` bigint(20) NOT NULL COMMENT '创建时间',\n  `gmt_modified`
+    bigint(20) NOT NULL COMMENT '修改时间',\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uk_tenant_info_kptenantid`
+    (`kp`,`tenant_id`),\n  KEY `idx_tenant_id` (`tenant_id`)\n) ENGINE=InnoDB DEFAULT
+    CHARSET=utf8 COLLATE=utf8_bin COMMENT='tenant_info';\n\nCREATE TABLE IF NOT EXISTS `users` (\n\t`username`
+    varchar(50) NOT NULL PRIMARY KEY,\n\t`password` varchar(500) NOT NULL,\n\t`enabled`
+    boolean NOT NULL\n);\n\nCREATE TABLE IF NOT EXISTS `roles` (\n\t`username` varchar(50) NOT NULL,\n\t`role`
+    varchar(50) NOT NULL,\n\tUNIQUE INDEX `idx_user_role` (`username` ASC, `role`
+    ASC) USING BTREE\n);\n\nCREATE TABLE IF NOT EXISTS `permissions` (\n    `role` varchar(50) NOT
+    NULL,\n    `resource` varchar(255) NOT NULL,\n    `action` varchar(8) NOT NULL,\n
+    \   UNIQUE INDEX `uk_role_permission` (`role`,`resource`,`action`) USING BTREE\n);\n\nINSERT
+    INTO users (username, password, enabled) VALUES ('nacos', '$2a$10$EuWPZHzz32dJN7jexM34MOeYirDdFAZm2kuWj7VEOJhhZkDrxfvUu',
+    TRUE);\n\nINSERT INTO roles (username, role) VALUES ('nacos', 'ROLE_ADMIN');"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: nacos-mysql-initsql
+{{- end }}
+---
+{{- if eq .Values.storage.type "mysql"}}
+apiVersion: v1
+data:
+  init-mysql.sh: "#!/bin/sh\n\ncount=0\nflag=0\nwhile [ 0 -eq 0 ]\ndo\n    echo \"..................
+    job begin  ...................\"\n    mysql -u {{ .Values.storage.mysql.username
+    }} -h {{ .Values.storage.mysql.name }}.{{ .Release.Namespace }}.svc.{{ .Values.global.domainName }} -p{{ .Values.storage.mysql.password }}
+    < nacos-mysql.sql\n\n    if [ flag -eq 0 ]; then\n        echo \"---------------
+    job complete ---------------\"\n        break;\n    else \n        count=$[${count}+1]\n
+    \       if [ ${count} -eq 6 ]; then\n            echo 'timeout,exit.'\n            break\n
+    \       fi\n        echo \"...............retry in 30 seconds ..........\"\n        sleep
+    30\n    fi\ndone"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: init-script
+{{- else if eq .Values.storage.type "rds" }}
+apiVersion: v1
+data:
+  init-mysql.sh: "#!/bin/sh\n\ncount=0\nflag=0\nwhile [ 0 -eq 0 ]\ndo\n    echo \"..................
+    job begin  ...................\"\n    mysql -u {{ .Values.storage.mysql.username
+    }} -h {{ .Values.storage.mysql.host }} -p{{ .Values.storage.mysql.password }}
+    < nacos-mysql.sql\n\n    if [ flag -eq 0 ]; then\n        echo \"---------------
+    job complete ---------------\"\n        break;\n    else \n        count=$[${count}+1]\n
+    \       if [ ${count} -eq 6 ]; then\n            echo 'timeout,exit.'\n            break\n
+    \       fi\n        echo \"...............retry in 30 seconds ..........\"\n        sleep
+    30\n    fi\ndone"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: init-script
+{{- end }}

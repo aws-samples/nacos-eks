@@ -1,0 +1,150 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+# Default values for nacos-eks.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  # -- nacos mode, If  want to deploy a deployment with more than 1 replica, please select `cluster` mode.
+  mode: standalone
+  # mode: cluster
+  # -- domainName
+  domainName: cluster.local
+
+storage:
+  # type can be embedded, mysql or rds
+  # -- nacos storage, select `mysql` will create mysql in kubernetes cluster.
+  type: embedded
+  mysql:
+    image: 
+      # -- mysql image repository. Only takes effect when `storage.type`=`mysql`.
+      repository: public.ecr.aws/docker/library/mysql
+      # -- mysql image tag. Only takes effect when `storage.type`=`mysql`.
+      tag: 5.7.37
+      # --  mysql image pullPolicy. Only takes effect when `storage.type`=`mysql`.
+      pullPolicy: IfNotPresent
+    # -- mysql deployment name. Only takes effect when `storage.type`=`mysql`.
+    name: mysql
+    # -- mysql host. Only takes effect when `storage.type`=`rds`.
+    host: mysql.nacos.svc.cluster.local
+    # -- mysql database. Only takes effect when `storage.type`=`mysql` or `rds`.
+    database: nacos
+    # -- mysql port. Only takes effect when `storage.type`=`mysql` or `rds`.
+    port: 3306
+    # -- mysql username. Only takes effect when `storage.type`=`mysql` or `rds`.
+    username: username
+    # -- mysql password. Only takes effect when `storage.type`=`mysql` or `rds`.
+    password: password
+    # -- mysql param. Only takes effect when `storage.type`=`mysql`.
+    param: characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false
+
+nacos:
+  # -- nacos deployment name.
+  name: nacos
+  image:
+    # -- nacos image repository.
+    repository: nacos/nacos-server
+    # -- nacos image tag.
+    tag: latest
+    # -- nacos image pullPolicy.
+    pullPolicy: IfNotPresent
+  # -- nacos replicaCount.
+  replicaCount: 1
+  # -- nacos serverPort.
+  serverPort: 8848
+  # -- nacos preferhostmode.
+  preferhostmode: hostname
+  resources:
+    limits:
+      # -- nacos cpu limits.
+      cpu: 500m
+      # -- nacos memory limits.
+      memory: 2Gi
+    requests:
+      # -- nacos cpu requests.
+      cpu: 500m
+      # --nacos memory requests.
+      memory: 2Gi
+  # -- nacos annotations.
+  annotations: {}
+  # -- nacos nodeSelector.
+  nodeSelector: {}
+  # -- nacos tolerations.
+  tolerations: []
+  # -- nacos affinity.
+  affinity: {}
+
+nacosplugin:
+  # -- nacosplugin enabled.
+  enabled: true
+  image:
+  # -- nacosplugin image repository.
+    repository: nacos/nacos-peer-finder-plugin
+    # -- nacosplugin tag repository.
+    tag: 1.1
+    # -- nacosplugin pullPolicy repository.
+    pullPolicy: Always
+
+persistence:
+  # -- persistence enabled.
+  enabled: true
+  data:
+    accessModes:
+      # -- nacos data persistence accessModes.
+      - ReadWriteOnce
+    # -- nacos data persistence storageClassName.
+    storageClassName: gp2
+    resources:
+      requests:
+        # -- nacos data storage request.
+        storage: 5Gi
+  mysql:
+    accessModes:
+      # -- mysql data persistence accessModes.
+      - ReadWriteOnce
+    # -- mysql data persistence storageClassName.
+    storageClassName: gp2
+    resources:
+      requests:
+        # -- mysql data storage request.
+        storage: 5Gi
+
+service:
+  # -- Nacos Kubernetes service type.
+  type: ClusterIP
+  # -- Nacos Kubernetes service port.
+  port: 8848
+
+ingress:
+  # -- Ingress enabled.
+  enabled: true
+  # -- Ingress annotations.
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /nacos
+    alb.ingress.kubernetes.io/success-codes: 200-399
+    alb.ingress.kubernetes.io/actions.redirect-to-nacos: >
+      {"type":"redirect","redirectConfig":{"host":"#{host}","path":"/nacos/","port":"#{port}","protocol":"#{protocol}","query":"#{query}","statusCode":"HTTP_301"}}
+  # -- Ingress tls enabled.
+  tlsenabled: false
+  # -- Ingress hosts.
+  hosts:
+    - paths: ["/nacos/"]
+      # host: nacos.example.com
